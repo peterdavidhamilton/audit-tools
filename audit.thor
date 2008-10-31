@@ -92,7 +92,7 @@ class Audit < Thor
   
   desc "coverage", "Run rcov for the application"
   def coverage
-    log `rcov --rails -T --no-html --only-uncovered --sort coverage test/*/*_test.rb`
+    log `rcov --rails -T --no-html --only-uncovered --sort coverage test/*/*_test.rb test/**/*_test.rb`
   end
   
   desc "flog", "Run flog on controllers and models"
