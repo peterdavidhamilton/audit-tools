@@ -1,13 +1,9 @@
 # module: audit2
-require '~/work/tools/towelie/lib/array'
-require '~/work/tools/towelie/lib/towelie'
  
 class Audit < Thor
-  include Towelie
-
   desc "all", "Run all audit tasks"
   def all
-    %w(architecture database stats tests coverage flog roodi filesize duplicated_code queries).each do |task|
+    %w(architecture database stats tests coverage flog smells filesize duplicated_code queries).each do |task|
       log "\n*** reviewing #{task}", true
       log `thor audit:#{task}`, true
     end
@@ -92,7 +88,7 @@ class Audit < Thor
   
   desc "coverage", "Run rcov for the application"
   def coverage
-    log `rcov --rails -T --no-html --only-uncovered --sort coverage test/*/*_test.rb test/**/*_test.rb`
+    log `rcov --rails -T --no-html --only-uncovered --sort coverage test/**/**/*_test.rb test/**/*_test.rb`
   end
   
   desc "flog", "Run flog on controllers and models"
@@ -123,53 +119,59 @@ class Audit < Thor
     end
   end
   
-  desc "roodi", "Run roodi for the application"
-  def roodi
-    log "\nAPPLICATION CODE", true
+  desc "smells", "Check for code smells"
+  def smells
+    log "\nROODI: Application Code", true
     log `roodi "./app/**/*.rb"`
 
-    log "\nLIBRARY CODE", true
+    log "\nROODI: Library Code", true
     log `roodi "./lib/**/*.rb"`
+
+    log "\nREEK: Application Code", true
+    log `reek app/**/*.rb`
+
+    log "\nREEK: Library Code", true
+    log `reek lib/**/*.rb`
   end
   
-  desc "filesize", "Check for abnormally large or small files"
+  desc "filesize", "Check for overly large and small files"
   def filesize
     controllers = `find app/controllers -name *.rb | xargs wc -l`
     small_controllers = controllers.select {|m| m =~ / 2 app/}
     unless small_controllers.empty?
-      log "\nUNMODIFIED CONTROLLERS", true
+      log "\nFILESIZE: Unmodified Controllers", true
       log '  ' + small_controllers.map {|h| h.sub(/.+ app\/controllers\//, '')}.join.chomp
     end
 
     helpers = `find app/helpers -name *.rb | xargs wc -l`
     small_helpers = helpers.select {|m| m =~ / 2 app/}
     unless small_helpers.empty?
-      log "\nUNMODIFIED HELPERS", true
+      log "\nFILESIZE: Unmodified Helpers", true
       log '  ' + small_helpers.map {|h| h.sub(/.+ app\/helpers\//, '')}.join.chomp
     end
     
     models = `find app/models -name *.rb | xargs wc -l`
     small_models = models.select {|m| m =~ / 2 app/}
     unless small_models.empty?
-      log "\nUNMODIFIED MODELS", true
+      log "\nFILESIZE: Unmodified Models", true
       log '  ' + small_models.map {|h| h.sub(/.+ app\/models\//, '')}.join.chomp
     end
     
     large_controllers = controllers.select {|m| m.scan(/ (\d+) app/).flatten.first.to_i > 100}
     unless large_controllers.empty?
-      log "\nLARGE CONTROLLERS", true
+      log "\nFILESIZE: Large Controllers", true
       log '  ' + large_controllers.map {|h| h.sub(/.+ app\/controllers\//, '')}.join.chomp
     end
 
     large_helpers = helpers.select {|m| m.scan(/ (\d+) app/).flatten.first.to_i > 100}
     unless large_helpers.empty?
-      log "\nLARGE HELPERS", true
+      log "\nFILESIZE: Large Helpers", true
       log '  ' + large_helpers.map {|h| h.sub(/.+ app\/helpers\//, '')}.join.chomp
     end
 
     large_models = models.select {|m| m.scan(/ (\d+) app/).flatten.first.to_i > 100}
     unless large_models.empty?
-      log "\nLARGE MODELS", true
+      log "\nFILESIZE: Large Models", true
       log '  ' + large_models.map {|h| h.sub(/.+ app\/models\//, '')}.join.chomp
     end
 
@@ -177,22 +179,18 @@ class Audit < Thor
     large_libraries = libraries.select {|m| m =~ / 2 lib/}
     large_libraries = large_libraries.select {|m| m.scan(/ (\d+) lib/).flatten.first.to_i > 50}
     unless large_libraries.empty?
-      log "\nLARGE LIBRARIES", true
+      log "\nFILESIZE: Large Libraries", true
       log '  ' + large_libraries.map {|h| h.sub(/.+ lib\//, '')}.join.chomp
     end
-
   end
   
-  desc "duplicated_code", "Check for duplicated methods"
+  desc "duplicated_code", "Check for duplicated methods using flay"
   def duplicated_code
-    log "\nDUPLICATED METHODS - CONTROLLERS", true
-    log duplicated('./app/controllers')
+    log "\nDUPLICATED: Application Code", true
+    log `flay ./app/**/*.rb`
 
-    log "\nDUPLICATED METHODS - MODELS", true
-    log duplicated('./app/models')
-
-    log "\nDUPLICATED METHODS - LIBRARIES", true
-    log duplicated('./lib')
+    log "\nDUPLICATED: Library Code", true
+    log `flay ./lib/**/*.rb`
   end
   
   
